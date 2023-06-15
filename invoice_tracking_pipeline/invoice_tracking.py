@@ -1,0 +1,58 @@
+import dlt
+import os
+from typing import Dict, List
+from google_drive_connector import download_pdf_from_google_drive, get_pdf_uris
+from langchain.document_loaders import UnstructuredPDFLoader
+from langchain.indexes import VectorstoreIndexCreator
+
+folder_id = 'xyz' # Add your own folder id (from Google Drive URL)
+
+
+def safely_query_index(index, query):
+    try:
+        return index.query(query).strip()
+    except Exception:
+        return []
+
+def process_one_pdf_to_structured(path_to_pdf:str) -> Dict:
+    loader = UnstructuredPDFLoader(path_to_pdf)
+    index = VectorstoreIndexCreator().from_loaders([loader])
+    return {
+        "file_name": path_to_pdf.split("/")[-1],
+        "recipient_company_name": safely_query_index(index, "Who is the recipient of the invoice? Just return the name"),
+        "invoice_amount": safely_query_index(index, "What is the total amount of the invoice? Just return the amount"),
+        "invoice_date": safely_query_index(index, "What is the date of the invoice? Just return the date"),
+        "invoice_number": safely_query_index(index, "What is the invoice number? Just return the number"),
+        "service_description": safely_query_index(index, "What is the description of the service that this invoice is for? Just return the description"),
+    }
+
+def process_all_pdfs_to_structured(path_to_pdfs:str)->List[Dict]:
+    for file in os.listdir(path_to_pdfs):
+        if file.endswith(".pdf"):
+            yield process_one_pdf_to_structured(os.path.join(path_to_pdfs,file))
+    return []
+
+
+def download_and_process_one_pdf(file_id, file_name, local_folder_to_store_pdfs:str="./data/invoices", delete_after_extraction=True):
+    download_pdf_from_google_drive(file_id, file_name, local_folder_to_store_pdfs)
+    structured_data = process_one_pdf_to_structured(os.path.join(local_folder_to_store_pdfs, file_name))
+    if delete_after_extraction:
+        os.remove(os.path.join(local_folder_to_store_pdfs, file_name))
+    yield structured_data
+
+@dlt.source
+def invoice_tracking_source():
+    return invoice_tracking_resources()
+
+
+@dlt.resource(write_disposition="append")
+def invoice_tracking_resources():
+    uris = get_pdf_uris(folder_id)
+    for file_name, file_id in uris.items():
+        yield download_and_process_one_pdf(file_id, file_name)
+
+
+if __name__ == "__main__":
+    pipeline = dlt.pipeline(pipeline_name="invoice_tracking", destination="duckdb", dataset_name="invoice_tracking_data")
+    data = list(invoice_tracking_resources())
+    load_info = pipeline.run(invoice_tracking_source())
