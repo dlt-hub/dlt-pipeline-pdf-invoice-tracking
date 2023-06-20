@@ -5,7 +5,9 @@ from google_drive_connector import download_pdf_from_google_drive, get_pdf_uris
 from langchain.document_loaders import UnstructuredPDFLoader
 from langchain.indexes import VectorstoreIndexCreator
 
-folder_id = 'xyz' # Add your own folder id (from Google Drive URL)
+
+# Add your own folder id (from Google Drive URL) (or use config.toml)
+folder_id=None
 
 
 def safely_query_index(index, query):
@@ -41,18 +43,18 @@ def download_and_process_one_pdf(file_id, file_name, local_folder_to_store_pdfs:
     yield structured_data
 
 @dlt.source
-def invoice_tracking_source():
-    return invoice_tracking_resources()
+def invoice_tracking_source(drive_folder_id=dlt.config.value, delete_after_extraction=True):
+    return invoice_tracking_resources(drive_folder_id, delete_after_extraction)
 
 
 @dlt.resource(write_disposition="append")
-def invoice_tracking_resources():
-    uris = get_pdf_uris(folder_id)
+def invoice_tracking_resources(drive_folder_id, delete_after_extraction):
+    uris = get_pdf_uris(drive_folder_id)
     for file_name, file_id in uris.items():
-        yield download_and_process_one_pdf(file_id, file_name)
+        yield download_and_process_one_pdf(file_id, file_name, delete_after_extraction=delete_after_extraction)
 
 
 if __name__ == "__main__":
     pipeline = dlt.pipeline(pipeline_name="invoice_tracking", destination="duckdb", dataset_name="invoice_tracking_data")
-    data = list(invoice_tracking_resources())
+    # data = list(invoice_tracking_resources())
     load_info = pipeline.run(invoice_tracking_source())

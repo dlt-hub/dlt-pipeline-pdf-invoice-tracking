@@ -1,4 +1,5 @@
-# put your configuration values here
+# Add your own folder id (from Google Drive URL)
+drive_folder_id="1FgwbjmsWxOpn9m19j6MxmefQH_RFRb9y"
 
 [runtime]
 log_level="WARNING"  # the system log level of dlt
