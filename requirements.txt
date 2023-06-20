@@ -1,4 +1,8 @@
 dlt[duckdb]
 langchain
+unstructured
+openapi
+chromadb
+tiktoken
 google-api-python-client
 google-auth-oauthlib

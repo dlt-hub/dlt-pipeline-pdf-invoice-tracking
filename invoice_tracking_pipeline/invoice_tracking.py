@@ -22,7 +22,7 @@ def process_one_pdf_to_structured(path_to_pdf:str) -> Dict:
     return {
         "file_name": path_to_pdf.split("/")[-1],
         "recipient_company_name": safely_query_index(index, "Who is the recipient of the invoice? Just return the name"),
-        "invoice_amount": safely_query_index(index, "What is the total amount of the invoice? Just return the amount"),
+        "invoice_amount": safely_query_index(index, "What is the total amount of the invoice? Just return the amount as decimal number, no currency or text"),
         "invoice_date": safely_query_index(index, "What is the date of the invoice? Just return the date"),
         "invoice_number": safely_query_index(index, "What is the invoice number? Just return the number"),
         "service_description": safely_query_index(index, "What is the description of the service that this invoice is for? Just return the description"),
@@ -56,5 +56,6 @@ def invoice_tracking_resources(drive_folder_id, delete_after_extraction):
 
 if __name__ == "__main__":
     pipeline = dlt.pipeline(pipeline_name="invoice_tracking", destination="duckdb", dataset_name="invoice_tracking_data")
-    # data = list(invoice_tracking_resources())
+    # print(list(invoice_tracking_source()))
     load_info = pipeline.run(invoice_tracking_source())
+    print(load_info)
